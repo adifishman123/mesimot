@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="המשימות שלי">
+<title>המשימות שלי</title>
+<style>
+  :root {
+    --bg: #f5f2ec;
+    --card: #fffdf9;
+    --ink: #2b2a26;
+    --ink-soft: #6f6a60;
+    --line: #e4ded2;
+    --accent: #7a6f57;
+    --done: #b4ab98;
+
+    --c-call: #c2683f;
+    --c-write-task: #4f7a6f;
+    --c-meet: #5a6b9e;
+    --c-home: #a8884c;
+    --c-work: #8a5a72;
+    --c-writing: #6a6f3f;
+    --c-self: #9e5a4f;
+
+    --shadow: 0 1px 2px rgba(60,52,38,.06), 0 4px 14px rgba(60,52,38,.05);
+    --radius: 14px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1b18;
+      --card: #26241f;
+      --ink: #ece8df;
+      --ink-soft: #a39d90;
+      --line: #38352d;
+      --accent: #cdbf9f;
+      --done: #6a6457;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.25);
+    }
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Heebo", "Assistant", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 0 16px calc(180px + env(safe-area-inset-bottom));
+    min-height: 100vh;
+  }
+
+  header {
+    padding: 28px 4px 16px;
+  }
+  .head-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  header h1 {
+    margin: 0;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -.02em;
+  }
+  .head-actions {
+    display: flex;
+    gap: 7px;
+    align-items: center;
+  }
+  .export-btn, .sync-btn {
+    flex: 0 0 auto;
+    border: 1px solid var(--line);
+    background: var(--card);
+    color: var(--ink-soft);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 7px 13px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all .15s ease;
+    white-space: nowrap;
+  }
+  .export-btn:active, .sync-btn:active { transform: scale(.94); }
+  .sync-btn.connected { color: #4f7a6f; border-color: #4f7a6f; }
+  .sync-btn.syncing { color: var(--accent); }
+  .sync-btn.error { color: #c2683f; border-color: #c2683f; }
+  header .sub {
+    margin-top: 4px;
+    font-size: 14px;
+    color: var(--ink-soft);
+  }
+
+  .filters {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 4px 4px 14px;
+    scrollbar-width: none;
+    position: sticky;
+    top: 0;
+    background: linear-gradient(var(--bg) 70%, transparent);
+    z-index: 5;
+  }
+  .filters::-webkit-scrollbar { display: none; }
+  .chip {
+    flex: 0 0 auto;
+    border: 1px solid var(--line);
+    background: var(--card);
+    color: var(--ink-soft);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 7px 14px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all .15s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .chip .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+  }
+  .chip.active {
+    background: var(--ink);
+    color: var(--bg);
+    border-color: var(--ink);
+  }
+  .chip .count {
+    font-size: 12px;
+    opacity: .65;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .group { margin-bottom: 6px; }
+  .group-head {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 18px 4px 8px;
+  }
+  .group-head .bar {
+    width: 4px; height: 18px; border-radius: 2px;
+  }
+  .group-head h2 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -.01em;
+  }
+  .group-head .n {
+    margin-inline-start: auto;
+    font-size: 13px;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .task {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 13px 15px;
+    margin-bottom: 8px;
+    box-shadow: var(--shadow);
+    transition: opacity .25s ease, transform .15s ease;
+    animation: pop .2s ease;
+  }
+  @keyframes pop {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .task .check {
+    flex: 0 0 auto;
+    width: 22px; height: 22px;
+    margin-top: 1px;
+    border-radius: 7px;
+    border: 2px solid var(--line);
+    background: transparent;
+    cursor: pointer;
+    position: relative;
+    transition: all .15s ease;
+  }
+  .task .check:active { transform: scale(.9); }
+  .task .body {
+    flex: 1;
+    font-size: 16px;
+    line-height: 1.45;
+    word-break: break-word;
+    cursor: pointer;
+  }
+  .task .del {
+    flex: 0 0 auto;
+    border: none;
+    background: none;
+    color: var(--ink-soft);
+    font-size: 20px;
+    line-height: 1;
+    padding: 0 2px;
+    cursor: pointer;
+    opacity: .4;
+    transition: opacity .15s;
+  }
+  .task .del:active { opacity: 1; }
+
+  .task.done { opacity: .55; }
+  .task.done .body { text-decoration: line-through; color: var(--done); }
+  .task.done .check {
+    background: var(--done);
+    border-color: var(--done);
+  }
+  .task.done .check::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--card);
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z'/%3E%3C/svg%3E") center/15px no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z'/%3E%3C/svg%3E") center/15px no-repeat;
+  }
+
+  .empty {
+    text-align: center;
+    color: var(--ink-soft);
+    padding: 60px 20px;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+  .empty .big { font-size: 32px; margin-bottom: 10px; }
+
+  .composer {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    background: var(--card);
+    border-top: 1px solid var(--line);
+    box-shadow: 0 -4px 20px rgba(60,52,38,.07);
+    z-index: 10;
+  }
+  .cat-row {
+    display: flex;
+    gap: 7px;
+    overflow-x: auto;
+    padding-bottom: 9px;
+    scrollbar-width: none;
+  }
+  .cat-row::-webkit-scrollbar { display: none; }
+  .cat-pick {
+    flex: 0 0 auto;
+    border: 1.5px solid var(--line);
+    background: transparent;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+    color: var(--ink-soft);
+    transition: all .15s ease;
+  }
+  .cat-pick.sel {
+    color: #fff;
+    border-color: transparent;
+  }
+  .input-row {
+    display: flex;
+    gap: 9px;
+    align-items: center;
+  }
+  .input-row input {
+    flex: 1;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 16px;
+    padding: 13px 15px;
+    border-radius: 12px;
+    outline: none;
+  }
+  .input-row input:focus { border-color: var(--accent); }
+  .add-btn {
+    flex: 0 0 auto;
+    width: 48px; height: 48px;
+    border: none;
+    border-radius: 12px;
+    background: var(--ink);
+    color: var(--bg);
+    font-size: 26px;
+    line-height: 1;
+    cursor: pointer;
+    transition: transform .1s;
+  }
+  .add-btn:active { transform: scale(.92); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="head-row">
+    <h1>המשימות שלי</h1>
+    <div class="head-actions">
+      <button id="syncBtn" class="sync-btn" aria-label="סנכרון">● לא מחובר</button>
+      <button id="exportBtn" class="export-btn" aria-label="גיבוי">גיבוי ↓</button>
+    </div>
+  </div>
+  <div class="sub" id="subline"></div>
+</header>
+
+<div class="filters" id="filters"></div>
+
+<main id="list"></main>
+
+<div class="composer">
+  <div class="cat-row" id="catRow"></div>
+  <div class="input-row">
+    <input type="text" id="taskInput" placeholder="מה צריך לעשות?" autocomplete="off">
+    <button class="add-btn" id="addBtn" aria-label="הוסף משימה">+</button>
+  </div>
+</div>
+
+<script>
+const CATS = [
+  { id: "call",  name: "לטלפן",        color: "var(--c-call)",       raw: "#c2683f" },
+  { id: "write", name: "לכתוב",        color: "var(--c-write-task)", raw: "#4f7a6f" },
+  { id: "meet",  name: "לקבוע פגישות", color: "var(--c-meet)",       raw: "#5a6b9e" },
+  { id: "home",  name: "משימות בית",   color: "var(--c-home)",       raw: "#a8884c" },
+  { id: "work",  name: "עבודה",        color: "var(--c-work)",       raw: "#8a5a72" },
+  { id: "lit",   name: "כתיבה",        color: "var(--c-writing)",    raw: "#6a6f3f" },
+  { id: "self",  name: "אישי",         color: "var(--c-self)",       raw: "#9e5a4f" },
+];
+
+const STORE = "mesimot_v1";
+let tasks = load();
+let activeFilter = "all";
+let selectedCat = CATS[0].id;
+
+function now() { return Date.now(); }
+
+function load() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(STORE)) || [];
+    // migrate old tasks to include timestamps
+    return raw.map(t => ({
+      id: t.id,
+      text: t.text,
+      cat: t.cat,
+      done: !!t.done,
+      updated: t.updated || now(),
+      deleted: t.deleted || false
+    }));
+  }
+  catch { return []; }
+}
+function save() {
+  localStorage.setItem(STORE, JSON.stringify(tasks));
+  scheduleSync();
+}
+// visible tasks = not deleted (tombstones kept internally for sync)
+function liveTasks() { return tasks.filter(t => !t.deleted); }
+
+function catById(id) { return CATS.find(c => c.id === id) || CATS[0]; }
+
+function addTask() {
+  const inp = document.getElementById("taskInput");
+  const text = inp.value.trim();
+  if (!text) return;
+  tasks.unshift({ id: now() + "" + Math.random().toString(36).slice(2), text, cat: selectedCat, done: false, updated: now(), deleted: false });
+  inp.value = "";
+  save();
+  render();
+  inp.focus();
+}
+
+function toggle(id) {
+  const t = tasks.find(t => t.id === id);
+  if (t) { t.done = !t.done; t.updated = now(); save(); render(); }
+}
+
+function del(id) {
+  const t = tasks.find(t => t.id === id);
+  if (t) { t.deleted = true; t.updated = now(); save(); render(); }
+}
+
+function render() {
+  renderFilters();
+  renderCatPicker();
+  renderList();
+  renderSub();
+}
+
+function renderSub() {
+  const live = liveTasks();
+  const open = live.filter(t => !t.done).length;
+  const sub = document.getElementById("subline");
+  if (live.length === 0) { sub.textContent = "הכול נקי. מה ראשון?"; return; }
+  sub.textContent = open === 0 ? "סיימת הכול. כל הכבוד." :
+    open === 1 ? "משימה פתוחה אחת" : open + " משימות פתוחות";
+}
+
+function renderFilters() {
+  const f = document.getElementById("filters");
+  const live = liveTasks();
+  const openCount = live.filter(t => !t.done).length;
+  let html = `<button class="chip ${activeFilter==='all'?'active':''}" onclick="setFilter('all')">
+    הכול <span class="count">${openCount}</span></button>`;
+  CATS.forEach(c => {
+    const n = live.filter(t => t.cat === c.id && !t.done).length;
+    if (n === 0 && activeFilter !== c.id) return;
+    html += `<button class="chip ${activeFilter===c.id?'active':''}" onclick="setFilter('${c.id}')">
+      <span class="dot" style="background:${c.color}"></span>${c.name}<span class="count">${n}</span></button>`;
+  });
+  f.innerHTML = html;
+}
+
+function setFilter(id) { activeFilter = id; render(); }
+
+function renderCatPicker() {
+  const row = document.getElementById("catRow");
+  row.innerHTML = CATS.map(c => {
+    const sel = c.id === selectedCat;
+    const style = sel ? `background:${c.color};` : `border-color:${c.color};color:${c.color};`;
+    return `<button class="cat-pick ${sel?'sel':''}" style="${style}" onclick="pickCat('${c.id}')">${c.name}</button>`;
+  }).join("");
+}
+
+function pickCat(id) { selectedCat = id; renderCatPicker(); }
+
+function renderList() {
+  const list = document.getElementById("list");
+  const live = liveTasks();
+  let visible = activeFilter === "all" ? live : live.filter(t => t.cat === activeFilter);
+
+  if (visible.length === 0) {
+    list.innerHTML = `<div class="empty"><div class="big">✶</div>
+      ${activeFilter==='all' ? 'אין משימות עדיין.<br>תוסיפי את הראשונה למטה.' : 'אין כאן משימות.'}</div>`;
+    return;
+  }
+
+  let html = "";
+  const groupsToShow = activeFilter === "all" ? CATS : CATS.filter(c => c.id === activeFilter);
+
+  groupsToShow.forEach(c => {
+    const items = visible.filter(t => t.cat === c.id);
+    if (items.length === 0) return;
+    items.sort((a,b) => (a.done?1:0) - (b.done?1:0));
+    const openN = items.filter(t => !t.done).length;
+    html += `<div class="group">
+      <div class="group-head">
+        <span class="bar" style="background:${c.color}"></span>
+        <h2>${c.name}</h2>
+        <span class="n">${openN}/${items.length}</span>
+      </div>`;
+    items.forEach(t => {
+      html += `<div class="task ${t.done?'done':''}">
+        <button class="check" onclick="toggle('${t.id}')" aria-label="סמן כבוצע"></button>
+        <div class="body" onclick="toggle('${t.id}')">${escapeHtml(t.text)}</div>
+        <button class="del" onclick="del('${t.id}')" aria-label="מחק">×</button>
+      </div>`;
+    });
+    html += `</div>`;
+  });
+  list.innerHTML = html;
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+function exportTasks() {
+  const stamp = new Date().toISOString().slice(0,10);
+  const data = JSON.stringify({ version: 1, exported: new Date().toISOString(), tasks: liveTasks() }, null, 2);
+  const blob = new Blob([data], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "mesimot-gibuy-" + stamp + ".json";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+document.getElementById("exportBtn").addEventListener("click", exportTasks);
+
+/* ============================================================
+   סנכרון דרך Google Drive
+   הקובץ נשמר בתיקייה פרטית (appDataFolder) - בלתי נראית
+   בדרייव הרגיל, שמורה רק לאפליקציה הזו.
+   ============================================================ */
+
+// ▼▼▼ המזהה הזה מתמלא בצעד ההקמה - ראי הוראות ▼▼▼
+const GOOGLE_CLIENT_ID = "PASTE_CLIENT_ID_HERE";
+// ▲▲▲
+
+const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.appdata";
+const FILE_NAME = "mesimot-data.json";
+const TOKEN_STORE = "mesimot_token";
+
+let accessToken = null;
+let tokenClient = null;
+let driveFileId = null;
+let syncTimer = null;
+let syncing = false;
+let gapiReady = false;
+
+function setSyncStatus(state, label) {
+  const btn = document.getElementById("syncBtn");
+  btn.className = "sync-btn " + state;
+  btn.textContent = label;
+}
+
+// טוען את ספריות גוגל באופן דינמי
+function loadGoogleLibs() {
+  return new Promise((resolve, reject) => {
+    if (window.google && window.google.accounts) { resolve(); return; }
+    const s = document.createElement("script");
+    s.src = "https://accounts.google.com/gsi/client";
+    s.onload = resolve;
+    s.onerror = () => reject(new Error("load-fail"));
+    document.head.appendChild(s);
+  });
+}
+
+async function initSync() {
+  if (GOOGLE_CLIENT_ID === "PASTE_CLIENT_ID_HERE") {
+    setSyncStatus("", "● לא מוגדר");
+    return; // עדיין לא הוגדר מזהה - האפליקציה עובדת מקומית
+  }
+  try {
+    await loadGoogleLibs();
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: DRIVE_SCOPE,
+      callback: (resp) => {
+        if (resp.error) { setSyncStatus("error", "● שגיאה"); return; }
+        accessToken = resp.access_token;
+        try { localStorage.setItem(TOKEN_STORE, JSON.stringify({ t: accessToken, exp: now() + (resp.expires_in-60)*1000 })); } catch {}
+        onConnected();
+      },
+    });
+    // ננסה טוקן שמור
+    const saved = tryStoredToken();
+    if (saved) { accessToken = saved; onConnected(); }
+    else setSyncStatus("", "● התחברי");
+  } catch (e) {
+    setSyncStatus("error", "● שגיאת חיבור");
+  }
+}
+
+function tryStoredToken() {
+  try {
+    const s = JSON.parse(localStorage.getItem(TOKEN_STORE));
+    if (s && s.t && s.exp > now()) return s.t;
+  } catch {}
+  return null;
+}
+
+function connect() {
+  if (GOOGLE_CLIENT_ID === "PASTE_CLIENT_ID_HERE") {
+    alert("הסנכרון עדיין לא הוגדר. עקבי אחר הוראות ההקמה כדי להפעיל אותו.");
+    return;
+  }
+  if (!tokenClient) { initSync(); return; }
+  tokenClient.requestAccessToken({ prompt: accessToken ? "" : "consent" });
+}
+
+async function onConnected() {
+  setSyncStatus("syncing", "● מסנכרן…");
+  try {
+    await findOrCreateFile();
+    await fullSync();
+    setSyncStatus("connected", "● מסונכרן");
+  } catch (e) {
+    if (isAuthError(e)) { accessToken = null; setSyncStatus("", "● התחברי"); }
+    else setSyncStatus("error", "● שגיאה");
+  }
+}
+
+function isAuthError(e) {
+  return e && (e.status === 401 || e.status === 403);
+}
+
+async function driveFetch(url, opts = {}) {
+  opts.headers = Object.assign({}, opts.headers, { Authorization: "Bearer " + accessToken });
+  const r = await fetch(url, opts);
+  if (r.status === 401 || r.status === 403) { const err = new Error("auth"); err.status = r.status; throw err; }
+  return r;
+}
+
+async function findOrCreateFile() {
+  const q = encodeURIComponent("name='" + FILE_NAME + "'");
+  const r = await driveFetch("https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=" + q + "&fields=files(id,name)");
+  const data = await r.json();
+  if (data.files && data.files.length > 0) {
+    driveFileId = data.files[0].id;
+  } else {
+    // ניצור קובץ חדש
+    const meta = { name: FILE_NAME, parents: ["appDataFolder"] };
+    const cr = await driveFetch("https://www.googleapis.com/drive/v3/files?fields=id", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(meta),
+    });
+    const cd = await cr.json();
+    driveFileId = cd.id;
+    await uploadTasks(); // כתיבה ראשונית
+  }
+}
+
+async function downloadTasks() {
+  if (!driveFileId) return null;
+  const r = await driveFetch("https://www.googleapis.com/drive/v3/files/" + driveFileId + "?alt=media");
+  if (r.status === 404) return null;
+  const text = await r.text();
+  if (!text.trim()) return null;
+  try { const d = JSON.parse(text); return Array.isArray(d.tasks) ? d.tasks : []; }
+  catch { return null; }
+}
+
+async function uploadTasks() {
+  const body = JSON.stringify({ version: 1, updated: now(), tasks });
+  await driveFetch("https://www.googleapis.com/upload/drive/v3/files/" + driveFileId + "?uploadType=media", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body,
+  });
+}
+
+// מיזוג חכם: לכל משימה, הגרסה עם החותמת המאוחרת ביותר מנצחת
+function mergeTasks(local, remote) {
+  const map = new Map();
+  for (const t of local) map.set(t.id, t);
+  for (const t of remote) {
+    const ex = map.get(t.id);
+    if (!ex || (t.updated || 0) > (ex.updated || 0)) map.set(t.id, t);
+  }
+  return Array.from(map.values());
+}
+
+async function fullSync() {
+  if (syncing) return;
+  syncing = true;
+  try {
+    const remote = await downloadTasks();
+    if (remote) {
+      const merged = mergeTasks(tasks, remote);
+      const changed = JSON.stringify(merged) !== JSON.stringify(tasks);
+      tasks = merged;
+      localStorage.setItem(STORE, JSON.stringify(tasks));
+      if (changed) render();
+    }
+    await uploadTasks();
+  } finally {
+    syncing = false;
+  }
+}
+
+// סנכרון מושהה - נמנע מהצפת בקשות בזמן הקלדה מהירה
+function scheduleSync() {
+  if (!accessToken || GOOGLE_CLIENT_ID === "PASTE_CLIENT_ID_HERE") return;
+  clearTimeout(syncTimer);
+  setSyncStatus("syncing", "● מסנכרן…");
+  syncTimer = setTimeout(async () => {
+    try {
+      await fullSync();
+      setSyncStatus("connected", "● מסונכרן");
+    } catch (e) {
+      if (isAuthError(e)) { accessToken = null; setSyncStatus("", "● התחברי"); }
+      else setSyncStatus("error", "● שגיאה");
+    }
+  }, 1200);
+}
+
+// סנכרון בכל פתיחה/חזרה לאפליקציה
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && accessToken) {
+    onConnected();
+  }
+});
+
+document.getElementById("syncBtn").addEventListener("click", connect);
+
+document.getElementById("addBtn").addEventListener("click", addTask);
+document.getElementById("taskInput").addEventListener("keydown", e => {
+  if (e.key === "Enter") addTask();
+});
+
+render();
+initSync();
+</script>
+</body>
+</html>
